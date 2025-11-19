@@ -322,45 +322,27 @@ endmodule
 // n-bit up/down-counter with reset, load, enable, and direction control
 
 module upDn_count (R, Clock, Resetn, L, E, Dir, Q);
-
     parameter n = 8;
-
     input wire [n-1:0] R;
-
     input wire Clock, Resetn, E, L, Dir;
-
     output reg [n-1:0] Q;
 
-
-
     always @ (posedge Clock)
-
         if (Resetn == 0)
-
             Q <= {n{1'b0}};
-
         else if (L == 1)
-
             Q <= R;
-
         else if (E)
-
             if (Dir)
-
                 Q <= Q + {{n-1{1'b0}},1'b1};
-
             else
-
                 Q <= Q - {{n-1{1'b0}},1'b1};
-
 endmodule
 
 
 
 module hex7seg (hex, display);
-
     input wire [3:0] hex;
-
     output reg [6:0] display;
 
 
@@ -382,7 +364,6 @@ module hex7seg (hex, display);
     always @ (hex)
 
         case (hex)
-
             4'h0: display = 7'b1000000;
             4'h1: display = 7'b1111001;
             4'h2: display = 7'b0100100;
@@ -399,7 +380,6 @@ module hex7seg (hex, display);
             4'hD: display = 7'b0100001;
             4'hE: display = 7'b0000110;
             4'hF: display = 7'b0001110;
-
         endcase
 
 endmodule
@@ -409,17 +389,12 @@ endmodule
 // implements a movable object
 
 module object (Resetn, Clock, go, ps2_rec, dir, VGA_x, VGA_y, VGA_color, VGA_write, done, x_centre, y_centre);
-
     // specify the number of bits needed for an X (column) pixel coordinate on the VGA display
-
     parameter nX = 10;
-
     // specify the number of bits needed for a Y (row) pixel coordinate on the VGA display
-
     parameter nY = 9;
-
+	
     // by default, use offsets to center the object on the VGA display
-
     parameter XOFFSET = 320;
     parameter YOFFSET = 240;
     parameter LEFT = 2'b00 /*'a'*/, RIGHT = 2'b11/*'s'*/, UP = 2'b01/*'w'*/, DOWN = 2'b10/*'z'*/;
@@ -428,8 +403,6 @@ module object (Resetn, Clock, go, ps2_rec, dir, VGA_x, VGA_y, VGA_color, VGA_wri
     parameter BOX_SIZE_Y = 1 << yOBJ;
     parameter Mn = xOBJ + yOBJ; // address lines needed for the object memory
     parameter INIT_FILE = "./MIF/object_mem_16_16_9.mif";
-
-
 
     // state names for the FSM that draws the object
     parameter A = 3'b000, B = 3'b001, C = 3'b010, D = 3'b011, E = 3'b100,
@@ -454,183 +427,101 @@ output wire [nY-1:0] y_centre;
 
 
 wire [nX-1:0] X, X0;    // starting X location 
-
 wire [nY-1:0] Y, Y0;    // starting Y location 
-
 wire [nX-1:0] size_x = BOX_SIZE_X;   // store the X size (must be power of 2)
-
 wire [nY-1:0] size_y = BOX_SIZE_Y;   // store the Y size
-
     wire [xOBJ-1:0] XC;                  // used to access object memory
-
     wire [yOBJ-1:0] YC;                  // used to access object memory
-
     reg write, Lxc, Lyc, Exc, Eyc;       // object control signals
-
     reg erase;                           // erase/draw object
-
     wire Right, Left, Up, Down;          // object direction
-
     reg Lx, Ly, Ex, Ey;                  // object counter controls
-
     reg [2:0] y_Q, Y_D;                  // FSM
-
     
-
 wire [8:0] obj_color;    // object pixel colors, read from memory
 
 
     // object (x,y) location. For x, counter will be enabled when moving L/R, increment
-
     // for R, decrement for L. For y, counter will be enabled when moving U/D, increment 
-
     // for D, decrement for U
-
     assign X0 = XOFFSET;
-
     assign Y0 = YOFFSET;
 
     upDn_count UX (X0, Clock, Resetn, Lx, Ex, Right, X);
-
         defparam UX.n = nX;
-
     upDn_count UY (Y0, Clock, Resetn, Ly, Ey, Down, Y);
-
         defparam UY.n = nY;
 
-
-
     // these counter are used to generate (x,y) coordinates to read the object's pixels
-
     upDn_count U3 ({xOBJ{1'd0}}, Clock, Resetn, Lxc, Exc, 1'b1, XC); // object column counter
-
         defparam U3.n = xOBJ;
-
     upDn_count U4 ({yOBJ{1'd0}}, Clock, Resetn, Lyc, Eyc, 1'b1, YC); // object row counter
-
         defparam U4.n = yOBJ;
 
-
-
     // these signals are used to enable the (x,y) object location counters and to make these 
-
     // counters increment or decrement
-
     assign Left = (dir == LEFT);
-
     assign Right = (dir == RIGHT);
-
     assign Up = (dir == UP);
-
     assign Down = (dir == DOWN);
 
-
-
     // FSM state table
-
     always @ (*)
-
         case (y_Q)
-
             A:  Y_D = B;                        // load (x,y) location counters
-
             B:  if (go) Y_D = F;                // pushbutton KEY pressed to show object
-
                 else if (ps2_rec) Y_D = C;      // PS2 key received to move object
-
                 else Y_D = B;                   // wait
-
             C:  if (XC != size_x-1) Y_D = C;    // erase row of object
-
                 else Y_D = D;
-
             D:  if (YC != size_y-1) Y_D = C;    // next row of object to erase
-
                 else Y_D = E;                   // done erase cycle
-
             E:  Y_D = F;                        // +/- (x,y)
-
             F:  if (XC != size_x-1) Y_D = F;    // draw row of object
-
                 else Y_D = G;
-
             G:  if (YC != size_y-1) Y_D = F;    // next row of object to draw
-
                 else Y_D = H;                   // done draw cycle
-
             H:  if (go) Y_D = H;                // wait for KEY press
-
                 else Y_D = B;
-
             default: Y_D = A;
-
         endcase
 
     // FSM outputs
 
     always @ (*)
-
     begin
-
         // default assignments
-
         Lx = 1'b0; Ly = 1'b0; Ex = 1'b0; Ey = 1'b0; write = 1'b0; 
-
         Lxc = 1'b0; Lyc = 1'b0; Exc = 1'b0; Eyc = 1'b0; erase = 1'b0; done = 1'b0;
-
         case (y_Q)
-
             A:  begin Lx = 1'b1; Ly = 1'b1; end                   // load (X,Y) counters
-
             B:  begin Lxc = 1'b1; Lyc = 1'b1; end                 // load (XC,YC) counters
-
             C:  begin Exc = 1'b1; write = 1'b1; erase = 1'b1; end // enable XC, write pixel
-
             D:  begin Lxc = 1'b1; Eyc = 1'b1; erase = 1'b1; end   // load XC, enable YC
-
             // state E is reached after erasing the object. Now, move and draw the object
-
             E:  begin Ex = Right | Left; Ey = Up | Down; end      // move L/R or U/D
-
             F:  begin Exc = 1'b1; write = 1'b1; end               // enable XC, write pixel
-
             G:  begin Lxc = 1'b1; Eyc = 1'b1; end                 // load XC, enable YC
-
             H:  done = 1'b1;
-
-        endcase
+		endcase
 
     end
 
 
 
     // FSM state FFs
-
     always @(posedge Clock)
-
         if (!Resetn)
-
             y_Q <= 3'b0;
-
         else
-
             y_Q <= Y_D;
-
-
-
+	
     // read a pixel color from the object memory. We can use {YC,XC} because the x dimension
-
     // of the object memory is a power of 2
-
     object_mem U6 ({YC,XC}, Clock, obj_color);
-
         defparam U6.n = 9;
-
         defparam U6.Mn = xOBJ + yOBJ;
-
         defparam U6.INIT_FILE = INIT_FILE;
-
-
 
     // compute the (x,y) location of the current pixel to be drawn (or erased). We subtract
     // half the object's width and height because we want the objec to be centered at its 
@@ -654,9 +545,6 @@ wire [8:0] obj_color;    // object pixel colors, read from memory
 
 	assign x_centre = X;
 	assign y_centre = Y;
-
-
-
 endmodule
 
 
@@ -674,3 +562,4 @@ module coordinateConverter(new_X, new_Y, XC, YC);
 	assign new_Y = YC - 9'd16 - YC % 9'd16;
 
 endmodule
+
