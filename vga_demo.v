@@ -28,14 +28,15 @@ C: Scancode register enabled (we can take inputs yay!)
 D: Drawing
 */
 
-    parameter A = 3'b000, B = 3'b001, C = 3'b010, D = 3'b011, E = 3'b100, F = 3'b101, G = 3'b110, H = 3'b111;
+    parameter A = 8'b00000000, B = 8'b00000001, C = 8'b00000010, D = 8'b00000011, E = 8'b00000100, F = 8'b00000101, G = 8'b00000110, H = 8'b00000111;
+	 parameter I = 8'b00001000, J = 8'b00001001, K = 8'b00001010, L = 8'b00001011;
 
 	input wire CLOCK_50;
 	input wire [9:0] SW;
 	input wire [3:0] KEY;
 	output wire [9:0] LEDR;
 	inout wire PS2_CLK, PS2_DAT;
-		 output wire [6:0] HEX5, HEX4, HEX3, HEX2, HEX1, HEX0;
+	output wire [6:0] HEX5, HEX4, HEX3, HEX2, HEX1, HEX0;
 	output wire [7:0] VGA_R;
 	output wire [7:0] VGA_G;
 	output wire [7:0] VGA_B;
@@ -49,13 +50,11 @@ D: Drawing
 
 	wire [nX-1:0] O1_x, Block_x, MUX_x;    // x coordinate multiplexer
 	wire [nY-1:0] O1_y, Block_y, MUX_y;    // y coordinate multiplexer
-	wire [nX-1:0] O1_centre_x, O1_centre_x_new, left_x, right_x; // coordinates for collision check
-	wire [nY-1:0] O1_centre_y, O1_centre_y_new, top_y, bottom_y;
 	wire [8:0] O1_color, Block_color, MUX_color; // color multiplexer
 	wire O1_write, Block_write, MUX_write; // write control multiplexer
 
 
-	wire [1199:0] map;
+	wire [1199:0] map1, map2, map3;				// This is for pure reading purposes.
 
     reg prev_ps2_clk;               // ps2_clk value in the previous clock cycle
     wire negedge_ps2_clk;           // used for PS2 keyboard signals
@@ -67,17 +66,17 @@ D: Drawing
     reg [3:0] Packet;               // used to know when 11 bits have been received
     wire [7:0] scancode;            // used to save the current ps2 scancode
     reg Esc;                        // enable scancode register
-    reg step; 					         // move an object
-	 reg intial_draw;						// used to intialize objects
+    reg step; 					    // move an object
 
-    wire O1_done, Block_done, done;    // object move completed
-    wire [1:0] O1_dir;      // used to set direction of moving for objects
-    reg [2:0] y_Q, Y_D;             // FSM, used to control drawing of objects
+    wire O1_done, Block_done, done; // object move completed
+    wire [7:0] O1_dir;              // used to set direction of moving for objects
+    reg [7:0] y_Q, Y_D;             // FSM, used to control drawing of objects
 
-    wire Resetn, KEY1, KEY2, KEY3;        // Reset, and synchronized versions of KEYs
+    wire Resetn, KEY1, KEY2, KEY3, KEY0;  // Reset, and synchronized versions of KEYs
     wire PS2_CLK_S, PS2_DAT_S;      // synchronized versions of PS2 signals
 
-    assign Resetn = KEY[0];
+    assign Resetn = SW[9];
+	 sync S0 (~KEY[0], Resetn, CLOCK_50, KEY0);
     sync S1 (~KEY[1], Resetn, CLOCK_50, KEY1);
     sync S2 (~KEY[2], Resetn, CLOCK_50, KEY2);
 	sync S5 (~KEY[3], Resetn, CLOCK_50, KEY3);
@@ -104,8 +103,6 @@ D: Drawing
         end
     end
 
-        
-
     // 'count' ps2 data bits
     always @(posedge CLOCK_50) begin    // specify a 34-bit shift register
         if (!Resetn || Packet == 'd11)
@@ -122,75 +119,72 @@ D: Drawing
 
     // ps2 scancode is in Serial[8:1]
     regn USC (Serial[8:1], Resetn, Esc, CLOCK_50, scancode);
-    assign LEDR = {SW[1], SW[0], y_Q, scancode[4:0]};
+    assign LEDR = {y_Q[4:0], scancode[4:0]};
 
 
     // select object according to which PS2 key was pressed. 
-    assign O1_dir = scancode[1:0]; // ps2 key identifier (for a, s, w, z)
+    assign O1_dir = scancode; // ps2 key identifier
+	 
+	 wire [nX-1:0] O1_centre_x;
+	 wire [nY-1:0] O1_centre_y;
+	 wire collide1, collide2, collide3, collide;
+	 
+	 collision Collide1 (map1, collide1, O1_centre_x, O1_centre_y, O1_dir);
+	 collision Collide2 (map2, collide2, O1_centre_x, O1_centre_y, O1_dir);
+	 collision Collide3 (map3, collide3, O1_centre_x, O1_centre_y, O1_dir);
+	 
+	 assign collide = collide1 || collide2 || collide3;
 
- 
-
-	// Below is collision check
-
-	assign O1_centre_x_new = (O1_dir == 2'b11) ? O1_centre_x + 10'd1 :
-									(O1_dir == 2'b00) ? O1_centre_x - 10'd1 :
-										O1_centre_x;
-
-	assign O1_centre_y_new = (O1_dir == 2'b10) ? O1_centre_y + 9'd1 :
-									(O1_dir == 2'b01) ? O1_centre_y - 9'd1 :
-									O1_centre_y;
-
- 
-
-	assign left_x = O1_centre_x_new - 10'd8;
-	assign right_x = O1_centre_x_new + 10'd8 - 10'd1;
-	assign top_y = O1_centre_y_new - 9'd8;
-	assign bottom_y = O1_centre_y_new + 9'd8 - 9'd1;
-
- 
-
-	wire[5:0] left_grid_x = left_x / 10'd16;
-	wire[5:0] right_grid_x = right_x / 10'd16;
-	wire[4:0] top_grid_y = top_y / 9'd16;
-	wire[4:0] bottom_grid_y = bottom_y / 9'd16;
-
- 
-
-	wire top_left_corner = map[top_grid_y * 40 + left_grid_x];
-	wire top_right_corner = map[top_grid_y * 40 + right_grid_x];
-	wire bottom_left_corner = map[bottom_grid_y * 40 + left_grid_x];
-	wire bottom_right_corner = map[bottom_grid_y * 40 + right_grid_x];
-
- 
-
-	wire collide = top_left_corner || top_right_corner || bottom_left_corner || bottom_right_corner;
-
-		reg initialize_go, initial_draw;
-		wire initialize_done, block_exist_initial;
-		wire [9:0] initializer_x; // coordinates to draw the block in the initialize phase.
-		wire [8:0] initializer_y;
+		reg initialize_go_1, initialize_go_2, initialize_go_3;
+		reg initial_draw_1, initial_draw_2, initial_draw_3;
 		
-		object_map_DRAW (Resetn, CLOCK_50, initialize_go, initialize_done, map, block_exist_initial, initializer_x, initializer_y);
+		wire initialize_done_1, initialize_done_2, initialize_done_3;
+		wire block_exist_initial_1, block_exist_initial_2, block_exist_initial_3;
+		
+		wire [9:0] initializer_x_1, initializer_x_2, initializer_x_3; // coordinates to draw the block in the initialize phase.
+		wire [8:0] initializer_y_1, initializer_y_2, initializer_y_3;
+		
+		object_map_DRAW initializer1 (Resetn, CLOCK_50, initialize_go_1, initialize_done_1, map1, block_exist_initial_1, initializer_x_1, initializer_y_1);
+		object_map_DRAW initializer2 (Resetn, CLOCK_50, initialize_go_2, initialize_done_2, map2, block_exist_initial_2, initializer_x_2, initializer_y_2);
+		object_map_DRAW initializer3 (Resetn, CLOCK_50, initialize_go_3, initialize_done_3, map3, block_exist_initial_3, initializer_x_3, initializer_y_3);
 		
     // FSM state table
 
     always @ (*)
         case (y_Q)
-            A:  if (SW[0] == 1) Y_D = F;
-					else if (!ps2_rec) Y_D = A; 
+            A:  if (SW[0] == 1) Y_D = F; 			// Idle
+				else if (!ps2_rec) Y_D = A; 		
+				else if (win_con) Y_D = L;
                 else Y_D = B;
-            B:  Y_D = E;        // enable scancode register
-				E: if (collide) Y_D = A; // Collision check
-					else Y_D = C;
-            C:  Y_D = D;        // send step signal to object
+            B:  Y_D = E;        					// enable scancode register
+			E: 	if (collide) Y_D = A; 				// Collision check
+				else Y_D = C;
+            C:  Y_D = D;        					// send step signal to object
             D:  if (done == 1'b0) Y_D = D;
                 else Y_D = A;
-				F:	if (block_exist_initial) Y_D = G; // Count and find a block
-					else if (initialize_done) Y_D = A;
-					 else Y_D = F;
-				G: if (!Block_done) Y_D = G; // Draw
-					else Y_D = F;
-				H: ;
+			// Initializer 1
+			F:	if (block_exist_initial_1) Y_D = G; 	// Count and find a block
+				else if (initialize_done_1) Y_D = H;	
+				else Y_D = F;
+			G: if (!Block_done_1) Y_D = G; 			// Draw the block
+				else Y_D = F;								// Go back and find another block
+				
+			// Initializer 2
+			H: if (block_exist_initial_2) Y_D = I; 	// Count and find a block 
+				else if (initialize_done_2) Y_D = J;
+				else Y_D = H;
+			I: if (!Block_done_2) Y_D = I;
+				else Y_D = H;
+			
+			// Initializer 3
+			J: if (block_exist_initial_3) Y_D = K;		// Count and find a block
+				else if (initialize_done_3) Y_D = A;
+				else Y_D = J;
+			K: if (!Block_done_3) Y_D = K;
+				else Y_D = J;
+			
+			L:	;
+				
             default: Y_D = A;
         endcase
 
@@ -199,16 +193,23 @@ D: Drawing
     begin
 	 
         // default assignments
-        Esc = 1'b0; step = 1'b0; initialize_go = 1'b0; initial_draw = 1'b0;
+        Esc = 1'b0; step = 1'b0; 
+		  initialize_go_1 = 1'b0; initialize_go_2 = 1'b0; initialize_go_3 = 1'b0;
+		  initial_draw_1 = 1'b0; initial_draw_2 = 1'b0; initial_draw_3 = 1'b0;
+		  win_draw = 1'b0;
         case (y_Q)
             A:  ;
             B:  Esc = 1'b1;
             C:  step = 1'b1;  
             D:  ;
-				E:  ;
-				F:  initialize_go = 1'b1;
-				G:  begin initialize_go = 1'b0; initial_draw = 1'b1; end
-				H:  ;
+			E:  ;
+			F:  initialize_go_1 = 1'b1;
+			G:  initial_draw_1 = 1'b1; 
+			H:  initialize_go_2 = 1'b1;
+			I:  initial_draw_2 = 1'b1;
+			J:  initialize_go_3 = 1'b1;
+			K:  initial_draw_3 = 1'b1;
+			L:	 win_draw = 1'b1;
         endcase
     end
 
@@ -220,42 +221,110 @@ D: Drawing
             y_Q <= Y_D;
 
     // instantiate object 1
-    object O1 (Resetn, CLOCK_50, KEY1, step, O1_dir, O1_x, O1_y, O1_color, O1_write, O1_done, O1_centre_x, O1_centre_y);
-        defparam O1.LEFT  = 2'b00;  // 'a'
-        defparam O1.RIGHT = 2'b11;  // 's'
-        defparam O1.UP    = 2'b01;  // 'w'
-        defparam O1.DOWN =  2'b10;  // 'z'
-  defparam O1.INIT_FILE = "./MIF/player.mif";
+    object O1 (Resetn, CLOCK_50, 1'b0, step, O1_dir, O1_x, O1_y, O1_color, O1_write, O1_done, O1_centre_x, O1_centre_y);
+        defparam O1.LEFT  = 8'h1C;  // 'a'
+        defparam O1.RIGHT = 8'h23;  // 'd'
+        defparam O1.UP    = 8'h1D;  // 'w'
+        defparam O1.DOWN =  8'h1B;  // 's'
+        defparam O1.INIT_FILE = "./MIF/player.mif";
 
-  // These are used to store the initial (top left coordinate) of the block being drawn.
+    // These are used to store the initial (top left coordinate) of the block being drawn.
 
-	wire [nX-1:0] Block_ini_x;
-	wire [nY-1:0] Block_ini_y;
-
-	coordinateConverter C1 (Block_ini_x, Block_ini_y, O1_x, O1_y);
+	wire [nX-1:0] xBlock;
+	wire [nY-1:0] yBlock;
 	
-	wire [nX-1:0] happy_x = (KEY3) ? Block_ini_x :
-									(initial_draw) ? initializer_x :
-									Block_ini_x;
-	wire [nY-1:0] happy_y = (KEY3) ? Block_ini_y :
-									(initial_draw) ? initializer_y :
-									Block_ini_y;
+	wire blockExists_1, blockExists_2, blockExists_3;
+	wire [3:0] blockTypeOut_1, blockTypeOut_2, blockTypeOut_3;
+	wire [10:0] addr_1, addr_2, addr_3;
 	
-	blockObject happy (Resetn, CLOCK_50, KEY3 | initial_draw, Block_x, Block_y, Block_color, Block_write, Block_done, happy_x, happy_y, KEY2);
-	defparam happy.INIT_FILE = "MIF/happy.mif";
+	object_map_READ (Resetn, CLOCK_50, 1'b1, map1, O1_centre_x - 10'd8, O1_centre_y - 9'd8, blockExists_1, 4'd1, blockTypeOut_1, addr_1, xBlock, yBlock);
+	object_map_READ (Resetn, CLOCK_50, 1'b1, map2, O1_centre_x - 10'd8, O1_centre_y - 9'd8, blockExists_2, 4'd2, blockTypeOut_2, addr_2);
+	object_map_READ (Resetn, CLOCK_50, 1'b1, map3, O1_centre_x - 10'd8, O1_centre_y - 9'd8, blockExists_3, 4'd3, blockTypeOut_3, addr_3);
+	
+	wire [nX-1:0] happy_x = (KEY1 | KEY2 | KEY3) ? xBlock :						// Draw location is the gridded player location if drawing a block
+									(initial_draw_1) ? initializer_x_1 :							// Draw location is the initializer location if initializing
+									(initial_draw_2) ? initializer_x_2 :
+									(initial_draw_3) ? initializer_x_3 :
+									xBlock;														// Default to player gridded
+	wire [nY-1:0] happy_y = (KEY1 | KEY2 | KEY3) ? yBlock :
+									(initial_draw_1) ? initializer_y_1 :
+									(initial_draw_2) ? initializer_y_2 :
+									(initial_draw_3) ? initializer_y_3 :
+									yBlock;
+	
+	wire [nX-1:0] Block_x_1, Block_x_2, Block_x_3, Block_x_4;
+	wire [nY-1:0] Block_y_1, Block_y_2, Block_y_3, Block_y_4;
+	wire [8:0] Block_color_1, Block_color_2, Block_color_3, Block_color_4;
+	wire Block_write_1, Block_write_2, Block_write_3, Block_write_4, Block_done_1, Block_done_2, Block_done_3, Block_done_4;
+	
+	
+	
+	blockObject happy (Resetn, CLOCK_50, KEY1 | initial_draw_1, Block_x_1, Block_y_1, Block_color_1, Block_write_1, Block_done_1, happy_x, happy_y, KEY0);
+		defparam happy.INIT_FILE = "MIF/happy.mif";
+	blockObject sad (Resetn, CLOCK_50, KEY2 | initial_draw_2, Block_x_2, Block_y_2, Block_color_2, Block_write_2, Block_done_2, happy_x, happy_y, KEY0);
+		defparam sad.INIT_FILE = "MIF/player.mif";
+	blockObject cake (Resetn, CLOCK_50, KEY3 | initial_draw_3, Block_x_3, Block_y_3, Block_color_3, Block_write_3, Block_done_3, happy_x, happy_y, KEY0);
+		defparam cake.INIT_FILE = "MIF/cake.mif";
+	
+	wire win_con;
+	win_con (map1, map2, map3, win_con);
+	reg win_draw;
+	
+	blockObject happy2 (Resetn, CLOCK_50, win_draw, Block_x_4, Block_y_4, Block_color_4, Block_write_4, Block_done_4, O1_centre_x - 10'd8, O1_centre_y - 9'd8, KEY0);
+	
 	
 	// This is to specify whether to place or break a block
-	wire place_break = (KEY3 == 1'b1) ? 1'b1 : // Press key3 to place a block
-							 (KEY2 == 1'b1) ? 1'b0 : // Press key2 to break a block
+	wire place_break = (KEY1 == 1'b1) ? 1'b1 : // Press KEY1 to place a block type 1
+						(KEY2 == 1'b1) ? 1'b1 : // Press KEY2 to place a block type 2
+						(KEY3 == 1'b1) ? 1'b1 : // Press KEY3 to place a block type 3
+							 (KEY0 == 1'b1) ? 1'b0 : // Press KEY0 to break a block
 							 1'b0;
 	
-	wire write_enable_map = KEY3 | KEY2;
+	// This code block below is to avoid stacking of blocks
+	wire write_enable = KEY0 | KEY1 | KEY2 | KEY3;
 	
-	object_map_WRITE W1 (Resetn, CLOCK_50, write_enable_map, Block_ini_x, Block_ini_y, place_break, map);
+	wire data_1 = KEY1 && ~KEY0;
+	wire data_2 = KEY2 && ~KEY0;
+	wire data_3 = KEY3 && ~KEY0;
+	
+	object_map_WRITE_1 W1 (Resetn, CLOCK_50, write_enable, xBlock, yBlock, data_1, map1);
+	object_map_WRITE_2 W2 (Resetn, CLOCK_50, write_enable, xBlock, yBlock, data_2, map2);
+	object_map_WRITE_3 W3 (Resetn, CLOCK_50, write_enable, xBlock, yBlock, data_3, map3);
 
     assign done = O1_done | Block_done;
 
-	 wire block_active = KEY3 | KEY2 | initial_draw;
+	wire block_active = KEY1 | KEY2 | KEY3 | KEY0 | initial_draw_1 | initial_draw_2 | initial_draw_3 | win_draw;
+	
+	assign Block_x = 	(KEY1 | initial_draw_1) ? Block_x_1 :
+						(KEY2 | initial_draw_2) ? Block_x_2 :
+						(KEY3 | initial_draw_3) ? Block_x_3 :
+						(win_draw) ? Block_x_4 :
+						Block_x_1;
+						
+	assign Block_y = 	(KEY1 | initial_draw_1) ? Block_y_1 :
+						(KEY2 | initial_draw_2) ? Block_y_2 :
+						(KEY3 | initial_draw_3) ? Block_y_3 :
+						(win_draw) ? Block_y_4 :
+						Block_y_1;
+	
+	assign Block_color =(KEY1  | initial_draw_1) ? Block_color_1 :
+						(KEY2 | initial_draw_2) ? Block_color_2 :
+						(KEY3 | initial_draw_3) ? Block_color_3 :
+						(win_draw) ? Block_color_4 :
+						Block_color_1;
+	
+	assign Block_write =(KEY1  | initial_draw_1) ? Block_write_1 :
+						(KEY2 | initial_draw_2) ? Block_write_2 :
+						(KEY3 | initial_draw_3) ? Block_write_3 :
+						(win_draw) ? Block_write_4 :
+						Block_write_1;
+	
+	assign Block_done  =(KEY1  | initial_draw_1) ? Block_done_1 :
+						(KEY2 | initial_draw_2) ? Block_done_2 :
+						(KEY3 | initial_draw_3) ? Block_done_3 :
+						(win_draw) ? Block_done_4 :
+						Block_done_1;
+	
     // choose x, y, color, and write for one of the two objects
     assign MUX_x = (block_active) ? Block_x : O1_x ;
     assign MUX_y = (block_active) ? Block_y : O1_y ;
@@ -411,7 +480,7 @@ module object (Resetn, Clock, go, ps2_rec, dir, VGA_x, VGA_y, VGA_color, VGA_wri
     input wire Resetn, Clock;
     input wire go;                              // can be used to draw at initial position
     input wire ps2_rec;                         // PS2 data received
-    input wire [1:0] dir;                       // movement direction
+    input wire [7:0] dir;                       // movement direction
 	output wire [nX-1:0] VGA_x;                 // for syncing with object memory
 	output wire [nY-1:0] VGA_y;                 // for syncing with object memory
 	output wire [8:0] VGA_color;                // used to draw pixels
@@ -563,3 +632,63 @@ module coordinateConverter(new_X, new_Y, XC, YC);
 
 endmodule
 
+module collision(map, collide, O1_centre_x, O1_centre_y, O1_dir);
+
+	parameter nX = 10;
+	parameter nY = 9;
+	
+	parameter LEFT  = 8'h1C;  // 'a'
+   parameter RIGHT = 8'h23;  // 'd'
+   parameter UP    = 8'h1D;  // 'w'
+   parameter DOWN =  8'h1B;  // 's'
+	
+	
+	input wire [7:0] O1_dir;
+    input wire [1199:0] map;
+	input wire [nX-1:0] O1_centre_x;
+	input wire [nY-1:0] O1_centre_y;
+    output wire collide;
+
+    wire [nX-1:0] O1_centre_x_new, left_x, right_x; // coordinates for collision check
+	wire [nY-1:0] O1_centre_y_new, top_y, bottom_y;
+
+    // Step the object in the correct direction once, get new coordinates. 
+	assign O1_centre_x_new = (O1_dir == RIGHT) ? O1_centre_x + 10'd1 :
+									(O1_dir == LEFT) ? O1_centre_x - 10'd1 :
+										O1_centre_x;
+
+	assign O1_centre_y_new = (O1_dir == DOWN) ? O1_centre_y + 9'd1 :
+									(O1_dir == UP) ? O1_centre_y - 9'd1 :
+									O1_centre_y;
+
+ 
+    // calculate the left, right, top, bottom of the block
+	assign left_x = O1_centre_x_new - 10'd8;
+	assign right_x = O1_centre_x_new + 10'd8 - 10'd1;
+	assign top_y = O1_centre_y_new - 9'd8;
+	assign bottom_y = O1_centre_y_new + 9'd8 - 9'd1;
+
+    // convert the pixel coordinate into the grid coordinates.
+	wire[5:0] left_grid_x = left_x / 10'd16;
+	wire[5:0] right_grid_x = right_x / 10'd16;
+	wire[4:0] top_grid_y = top_y / 9'd16;
+	wire[4:0] bottom_grid_y = bottom_y / 9'd16;
+
+ 
+    // check if there is a block on the top left, top right, bottom left, bottom right corner.
+	wire top_left_corner = map[top_grid_y * 40 + left_grid_x];
+	wire top_right_corner = map[top_grid_y * 40 + right_grid_x];
+	wire bottom_left_corner = map[bottom_grid_y * 40 + left_grid_x];
+	wire bottom_right_corner = map[bottom_grid_y * 40 + right_grid_x];
+
+    // if any of the coordinates have a clock, block collides.
+	assign collide = top_left_corner || top_right_corner || bottom_left_corner || bottom_right_corner;
+
+endmodule
+
+module win_con (map1, map2, map3, win_con);
+	
+	input wire [1199:0] map1, map2, map3;
+	output wire win_con = (map1[0] == 1'b1 && map2[1] == 1'b1 && map3[2] == 1'b1) ? 1'b1 : 1'b0;
+
+endmodule
