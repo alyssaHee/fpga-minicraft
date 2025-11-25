@@ -93,8 +93,8 @@ module blockObject (Resetn, Clock, draw, VGA_x, VGA_y, VGA_color, VGA_write, don
 	 
 	 wire [8:0] obj_color;    					// object pixel colors, read from memory
 	 wire [8:0] resulting_color = (draw == 1'b1) ? obj_color: // This is the color output (green when erasing, obj_color when drawing)
-											(erase == 1'b1) ? 9'h6A :
-											9'h6A;
+											(erase == 1'b1) ? 9'h6B :
+											9'h6B;
     // read a pixel color from the object memory. We can use {YC,XC} because the x dimension
     // of the object memory is a power of 2
     block_mem U3 ({YC,XC}, Clock, obj_color);
