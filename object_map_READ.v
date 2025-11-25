@@ -5,11 +5,11 @@ module object_map_READ (Resetn, Clock, go, map, locationX, locationY, blockExist
 	input wire [1199:0] map;
 	input [9:0] locationX;			// ASSUMING THE LOCATIONS ARE PASSED IN REGULAR FORM (0-640, 0-480)
 	input [8:0] locationY;
-	input [3:0] blockTypeIn;		// Kept blockTypeIn and blockTypeOut to allow us to know which kind of block is at a certain location
+	input [2:0] blockTypeIn;		// Kept blockTypeIn and blockTypeOut to allow us to know which kind of block is at a certain location
 									// blockTypeIn will be passed in, if that type of block is there, the blockType will be output back. Otherwise, it will output 0000
 							// ****From here, we can XOR the blockTypeOut from all the objects to find the blockType that is at the location!!
 			
-	output reg [3:0] blockTypeOut;	// 4'b0000 means no block at the location (0000 will be used as the background block)
+	output reg [2:0] blockTypeOut;	// 3'b000 means no block at the location (000 will be used as the background block)
 	output reg blockExists;
 	output reg [10:0] addr;
 	output reg [9:0] xBlock;		// Outputs the x position and y position to draw blocks at
@@ -27,7 +27,7 @@ module object_map_READ (Resetn, Clock, go, map, locationX, locationY, blockExist
         if (!Resetn)
 		begin
 			blockExists <= 1'b0;
-			blockTypeOut <= 4'b0000;
+			blockTypeOut <= 3'b000;
 			addr <= 0;
 			done <= 1'b0;
 			distanceL <= 0;
@@ -50,6 +50,11 @@ module object_map_READ (Resetn, Clock, go, map, locationX, locationY, blockExist
 					blockTypeOut <= blockTypeIn;
 					blockExists <= 1'b1;
 				end
+				else
+				begin
+					blockTypeOut <= 3'b000;
+					blockExists <= 1'b0;
+				end
 				xBlock <= xGridLocation*16;
 				yBlock <= (yGridLocation-1)*16;
 				done <= 1'b1;
@@ -62,6 +67,11 @@ module object_map_READ (Resetn, Clock, go, map, locationX, locationY, blockExist
 					blockTypeOut <= blockTypeIn;
 					blockExists <= 1'b1;
 				end
+				else
+				begin
+					blockTypeOut <= 3'b000;
+					blockExists <= 1'b0;
+				end
 				xBlock <= (xGridLocation-1)*16;
 				yBlock <= yGridLocation*16;
 				done <= 1'b1;
@@ -71,13 +81,18 @@ module object_map_READ (Resetn, Clock, go, map, locationX, locationY, blockExist
 				// check which location is closer to player
 				distanceL <= locationX%16;
 				distanceT <= locationY%16;
-				if (distanceL < distanceT)
+				if (distanceL <= distanceT)
 				begin
 					addr <= 40*(yGridLocation) + (xGridLocation - 1);
 					if (map[40*(yGridLocation) + (xGridLocation - 1)] == 1'b1)
 					begin
 						blockTypeOut <= blockTypeIn;
 						blockExists <= 1'b1;
+					end
+					else
+					begin
+						blockTypeOut <= 3'b000;
+						blockExists <= 1'b0;
 					end
 					xBlock <= (xGridLocation-1)*16;
 					yBlock <= yGridLocation*16;
@@ -90,6 +105,11 @@ module object_map_READ (Resetn, Clock, go, map, locationX, locationY, blockExist
 					begin
 						blockTypeOut <= blockTypeIn;
 						blockExists <= 1'b1;
+					end
+					else
+					begin
+						blockTypeOut <= 3'b000;
+						blockExists <= 1'b0;
 					end
 					xBlock <= xGridLocation*16;
 					yBlock <= (yGridLocation-1)*16;
