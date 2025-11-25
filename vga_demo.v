@@ -29,7 +29,8 @@ D: Drawing
 */
 
     parameter A = 8'b00000000, B = 8'b00000001, C = 8'b00000010, D = 8'b00000011, E = 8'b00000100, F = 8'b00000101, G = 8'b00000110, H = 8'b00000111;
-	 parameter I = 8'b00001000, J = 8'b00001001, K = 8'b00001010, L = 8'b00001011;
+	 parameter I = 8'b00001000, J = 8'b00001001, K = 8'b00001010, L = 8'b00001011, M = 8'b00001100, N = 8'b00001101, O = 8'b00001110, P = 8'b00001111;
+	 parameter Q = 8'b00010000, R = 8'b00010001;
 
 	input wire CLOCK_50;
 	input wire [9:0] SW;
@@ -54,7 +55,7 @@ D: Drawing
 	wire O1_write, Block_write, MUX_write; // write control multiplexer
 
 
-	wire [1199:0] map1, map2, map3;				// This is for pure reading purposes.
+	wire [1199:0] map1, map2, map3, map4, map5, map6;				// This is for pure reading purposes.
 
     reg prev_ps2_clk;               // ps2_clk value in the previous clock cycle
     wire negedge_ps2_clk;           // used for PS2 keyboard signals
@@ -80,6 +81,14 @@ D: Drawing
     sync S1 (~KEY[1], Resetn, CLOCK_50, KEY1);
     sync S2 (~KEY[2], Resetn, CLOCK_50, KEY2);
 	sync S5 (~KEY[3], Resetn, CLOCK_50, KEY3);
+	
+	wire SW1, SW2, SW3, SW4, SW5, SW6;
+	debounce deb1 (SW[1], CLOCK_50, SW1);
+	debounce deb2 (SW[2], CLOCK_50, SW2);
+	debounce deb3 (SW[3], CLOCK_50, SW3);
+	debounce deb4 (SW[4], CLOCK_50, SW4);
+	debounce deb5 (SW[5], CLOCK_50, SW5);
+	debounce deb6 (SW[6], CLOCK_50, SW6);
 
     sync S3 (PS2_CLK, Resetn, CLOCK_50, PS2_CLK_S);
     sync S4 (PS2_DAT, Resetn, CLOCK_50, PS2_DAT_S);
@@ -119,7 +128,7 @@ D: Drawing
 
     // ps2 scancode is in Serial[8:1]
     regn USC (Serial[8:1], Resetn, Esc, CLOCK_50, scancode);
-    assign LEDR = {y_Q[4:0], scancode[4:0]};
+    assign LEDR = {y_Q[2:0], canBreak_1, canPlace_1, blockExists_5, blockExists_4, blockExists_3, blockExists_2, blockExists_1};
 
 
     // select object according to which PS2 key was pressed. 
@@ -127,26 +136,33 @@ D: Drawing
 	 
 	 wire [nX-1:0] O1_centre_x;
 	 wire [nY-1:0] O1_centre_y;
-	 wire collide1, collide2, collide3, collide;
+	 wire collide1, collide2, collide3, collide4, collide5, collide6, collide;
 	 
 	 collision Collide1 (map1, collide1, O1_centre_x, O1_centre_y, O1_dir);
 	 collision Collide2 (map2, collide2, O1_centre_x, O1_centre_y, O1_dir);
 	 collision Collide3 (map3, collide3, O1_centre_x, O1_centre_y, O1_dir);
+	 collision Collide4 (map4, collide4, O1_centre_x, O1_centre_y, O1_dir);
+	 collision Collide5 (map5, collide5, O1_centre_x, O1_centre_y, O1_dir);
+	 collision Collide6 (map6, collide6, O1_centre_x, O1_centre_y, O1_dir);
 	 
-	 assign collide = collide1 || collide2 || collide3;
+	 assign collide = collide1 || collide2 || collide3 || collide4 || collide5 || collide6;
 
-		reg initialize_go_1, initialize_go_2, initialize_go_3;
-		reg initial_draw_1, initial_draw_2, initial_draw_3;
+		reg initialize_go_1, initialize_go_2, initialize_go_3, initialize_go_4, initialize_go_5, initialize_go_6;
+		reg initial_draw_1, initial_draw_2, initial_draw_3, initial_draw_4, initial_draw_5, initial_draw_6;
 		
-		wire initialize_done_1, initialize_done_2, initialize_done_3;
-		wire block_exist_initial_1, block_exist_initial_2, block_exist_initial_3;
+		wire initialize_done_1, initialize_done_2, initialize_done_3, initialize_done_4, initialize_done_5, initialize_done_6;
+		wire block_exist_initial_1, block_exist_initial_2, block_exist_initial_3, block_exist_initial_4, block_exist_initial_5, block_exist_initial_6;
 		
-		wire [9:0] initializer_x_1, initializer_x_2, initializer_x_3; // coordinates to draw the block in the initialize phase.
-		wire [8:0] initializer_y_1, initializer_y_2, initializer_y_3;
+		wire [9:0] initializer_x_1, initializer_x_2, initializer_x_3, initializer_x_4, initializer_x_5, initializer_x_6; // coordinates to draw the block in the initialize phase.
+		wire [8:0] initializer_y_1, initializer_y_2, initializer_y_3, initializer_y_4, initializer_y_5, initializer_y_6;
 		
 		object_map_DRAW initializer1 (Resetn, CLOCK_50, initialize_go_1, initialize_done_1, map1, block_exist_initial_1, initializer_x_1, initializer_y_1);
 		object_map_DRAW initializer2 (Resetn, CLOCK_50, initialize_go_2, initialize_done_2, map2, block_exist_initial_2, initializer_x_2, initializer_y_2);
 		object_map_DRAW initializer3 (Resetn, CLOCK_50, initialize_go_3, initialize_done_3, map3, block_exist_initial_3, initializer_x_3, initializer_y_3);
+		object_map_DRAW initializer4 (Resetn, CLOCK_50, initialize_go_4, initialize_done_4, map4, block_exist_initial_4, initializer_x_4, initializer_y_4);
+		object_map_DRAW initializer5 (Resetn, CLOCK_50, initialize_go_5, initialize_done_5, map5, block_exist_initial_5, initializer_x_5, initializer_y_5);
+		object_map_DRAW initializer6 (Resetn, CLOCK_50, initialize_go_6, initialize_done_6, map6, block_exist_initial_6, initializer_x_6, initializer_y_6);
+		
 		
     // FSM state table
 
@@ -154,7 +170,7 @@ D: Drawing
         case (y_Q)
             A:  if (SW[0] == 1) Y_D = F; 			// Idle
 				else if (!ps2_rec) Y_D = A; 		
-				else if (win_con) Y_D = L;
+				else if (win_con) Y_D = R;
                 else Y_D = B;
             B:  Y_D = E;        					// enable scancode register
 			E: 	if (collide) Y_D = A; 				// Collision check
@@ -178,12 +194,36 @@ D: Drawing
 			
 			// Initializer 3
 			J: if (block_exist_initial_3) Y_D = K;		// Count and find a block
-				else if (initialize_done_3) Y_D = A;
+				else if (initialize_done_3) Y_D = L;
 				else Y_D = J;
 			K: if (!Block_done_3) Y_D = K;
 				else Y_D = J;
 			
-			L:	;
+			// Initializer 4
+			L:	if (block_exist_initial_4) Y_D = M;		// Count and find a block
+				else if (initialize_done_4) Y_D = N;
+				else Y_D = L;
+			
+			M: if (!Block_done_4) Y_D = M;
+				else Y_D = L;
+			
+			// Initializer 5
+			N: if (block_exist_initial_5) Y_D = O;		// Count and find a block
+				else if (initialize_done_5) Y_D = P;
+				else Y_D = N;
+			
+			O: if (!Block_done_5) Y_D = O;
+				else Y_D = N;
+			
+			// Initializer 6
+			P: if (block_exist_initial_6) Y_D = Q;		// Count and find a block
+				else if (initialize_done_6) Y_D = A;
+				else Y_D = P;
+			
+			Q: if (!Block_done_6) Y_D = Q;
+				else Y_D = P;
+			
+			R: Y_D = R;											// Game win
 				
             default: Y_D = A;
         endcase
@@ -194,8 +234,8 @@ D: Drawing
 	 
         // default assignments
         Esc = 1'b0; step = 1'b0; 
-		  initialize_go_1 = 1'b0; initialize_go_2 = 1'b0; initialize_go_3 = 1'b0;
-		  initial_draw_1 = 1'b0; initial_draw_2 = 1'b0; initial_draw_3 = 1'b0;
+		  initialize_go_1 = 1'b0; initialize_go_2 = 1'b0; initialize_go_3 = 1'b0; initialize_go_4 = 1'b0; initialize_go_5 = 1'b0; initialize_go_6 = 1'b0;
+		  initial_draw_1 = 1'b0; initial_draw_2 = 1'b0; initial_draw_3 = 1'b0; initial_draw_4 = 1'b0; initial_draw_5 = 1'b0; initial_draw_6 = 1'b0;
 		  win_draw = 1'b0;
         case (y_Q)
             A:  ;
@@ -209,7 +249,13 @@ D: Drawing
 			I:  initial_draw_2 = 1'b1;
 			J:  initialize_go_3 = 1'b1;
 			K:  initial_draw_3 = 1'b1;
-			L:	 win_draw = 1'b1;
+			L:	 initialize_go_4 = 1'b1;
+			M:  initial_draw_4 = 1'b1;
+			N:  initialize_go_5 = 1'b1;
+			O:  initial_draw_5 = 1'b1;
+			P:  initialize_go_6 = 1'b1;
+			Q:  initial_draw_6 = 1'b1;
+			R:  win_draw = 1'b1;
         endcase
     end
 
@@ -226,103 +272,187 @@ D: Drawing
         defparam O1.RIGHT = 8'h23;  // 'd'
         defparam O1.UP    = 8'h1D;  // 'w'
         defparam O1.DOWN =  8'h1B;  // 's'
-        defparam O1.INIT_FILE = "./MIF/player.mif";
+        defparam O1.INIT_FILE = "./MIF/raccoon.mif";
 
     // These are used to store the initial (top left coordinate) of the block being drawn.
 
 	wire [nX-1:0] xBlock;
 	wire [nY-1:0] yBlock;
 	
-	wire blockExists_1, blockExists_2, blockExists_3;
-	wire [3:0] blockTypeOut_1, blockTypeOut_2, blockTypeOut_3;
-	wire [10:0] addr_1, addr_2, addr_3;
+	wire blockExists_1, blockExists_2, blockExists_3, blockExists_4, blockExists_5, blockExists_6;
+	wire [2:0] blockTypeOut_1, blockTypeOut_2, blockTypeOut_3, blockTypeOut_4, blockTypeOut_5, blockTypeOut_6;
+	wire [10:0] addr_1, addr_2, addr_3, addr_4, addr_5, addr_6;
 	
-	object_map_READ (Resetn, CLOCK_50, 1'b1, map1, O1_centre_x - 10'd8, O1_centre_y - 9'd8, blockExists_1, 4'd1, blockTypeOut_1, addr_1, xBlock, yBlock);
-	object_map_READ (Resetn, CLOCK_50, 1'b1, map2, O1_centre_x - 10'd8, O1_centre_y - 9'd8, blockExists_2, 4'd2, blockTypeOut_2, addr_2);
-	object_map_READ (Resetn, CLOCK_50, 1'b1, map3, O1_centre_x - 10'd8, O1_centre_y - 9'd8, blockExists_3, 4'd3, blockTypeOut_3, addr_3);
+	object_map_READ (Resetn, CLOCK_50, 1'b1, map1, O1_centre_x - 10'd8, O1_centre_y - 9'd8, blockExists_1, 3'd1, blockTypeOut_1, addr_1, xBlock, yBlock);
+	object_map_READ (Resetn, CLOCK_50, 1'b1, map2, O1_centre_x - 10'd8, O1_centre_y - 9'd8, blockExists_2, 3'd2, blockTypeOut_2, addr_2);
+	object_map_READ (Resetn, CLOCK_50, 1'b1, map3, O1_centre_x - 10'd8, O1_centre_y - 9'd8, blockExists_3, 3'd3, blockTypeOut_3, addr_3);
+	object_map_READ (Resetn, CLOCK_50, 1'b1, map4, O1_centre_x - 10'd8, O1_centre_y - 9'd8, blockExists_4, 3'd4, blockTypeOut_4, addr_4);
+	object_map_READ (Resetn, CLOCK_50, 1'b1, map5, O1_centre_x - 10'd8, O1_centre_y - 9'd8, blockExists_5, 3'd5, blockTypeOut_5, addr_5);
+	object_map_READ (Resetn, CLOCK_50, 1'b1, map6, O1_centre_x - 10'd8, O1_centre_y - 9'd8, blockExists_6, 3'd6, blockTypeOut_6, addr_6);
 	
-	wire [nX-1:0] happy_x = (KEY1 | KEY2 | KEY3) ? xBlock :						// Draw location is the gridded player location if drawing a block
+	wire [2:0] blockTypePlayer = (blockExists_1) ? 3'd1 : 
+										  (blockExists_2) ? 3'd2 : 
+										  (blockExists_3) ? 3'd3 : 
+										  (blockExists_4) ? 3'd4 : 
+										  (blockExists_5) ? 3'd5 : 
+										  (blockExists_6) ? 3'd6 : 
+										  3'd0;
+	
+	wire canPlace_1, canPlace_2, canPlace_3, canPlace_4, canPlace_5, canPlace_6;
+	wire canBreak_1, canBreak_2, canBreak_3, canBreak_4, canBreak_5, canBreak_6;
+	wire [3:0] inv_count_1, inv_count_2, inv_count_3, inv_count_4, inv_count_5, inv_count_6;
+	
+	inventoryCounter counter1 (Resetn, CLOCK_50, SW1 | KEY0, KEY0, SW1, blockTypePlayer, inv_count_1, canPlace_1, canBreak_1);
+		defparam counter1.BLOCKTYPE = 3'b001;
+	inventoryCounter counter2 (Resetn, CLOCK_50, SW2 | KEY0, KEY0, SW2, blockTypePlayer, inv_count_2, canPlace_2, canBreak_2);
+		defparam counter2.BLOCKTYPE = 3'b010;
+	inventoryCounter counter3 (Resetn, CLOCK_50, SW3 | KEY0, KEY0, SW3, blockTypePlayer, inv_count_3, canPlace_3, canBreak_3);
+		defparam counter3.BLOCKTYPE = 3'b011;
+	inventoryCounter counter4 (Resetn, CLOCK_50, SW4 | KEY0, KEY0, SW4, blockTypePlayer, inv_count_4, canPlace_4, canBreak_4);
+		defparam counter4.BLOCKTYPE = 3'b100;
+	inventoryCounter counter5 (Resetn, CLOCK_50, SW5 | KEY0, KEY0, SW5, blockTypePlayer, inv_count_5, canPlace_5, canBreak_5);
+		defparam counter5.BLOCKTYPE = 3'b101;
+	inventoryCounter counter6 (Resetn, CLOCK_50, SW6 | KEY0, KEY0, SW6, blockTypePlayer, inv_count_6, canPlace_6, canBreak_6);
+		defparam counter6.BLOCKTYPE = 3'b110;
+	
+	
+	
+	wire [nX-1:0] happy_x = (SW1 | SW2 | SW3 | SW4 | SW5 | SW6) ? xBlock :						// Draw location is the gridded player location if drawing a block
 									(initial_draw_1) ? initializer_x_1 :							// Draw location is the initializer location if initializing
 									(initial_draw_2) ? initializer_x_2 :
 									(initial_draw_3) ? initializer_x_3 :
+									(initial_draw_4) ? initializer_x_4 :
+									(initial_draw_5) ? initializer_x_5 :
+									(initial_draw_6) ? initializer_x_6 :
 									xBlock;														// Default to player gridded
-	wire [nY-1:0] happy_y = (KEY1 | KEY2 | KEY3) ? yBlock :
+	wire [nY-1:0] happy_y = (SW1 | SW2 | SW3 | SW4 | SW5 | SW6) ? yBlock :
 									(initial_draw_1) ? initializer_y_1 :
 									(initial_draw_2) ? initializer_y_2 :
 									(initial_draw_3) ? initializer_y_3 :
+									(initial_draw_4) ? initializer_y_4 :
+									(initial_draw_5) ? initializer_y_5 :
+									(initial_draw_6) ? initializer_y_6 :
 									yBlock;
 	
-	wire [nX-1:0] Block_x_1, Block_x_2, Block_x_3, Block_x_4;
-	wire [nY-1:0] Block_y_1, Block_y_2, Block_y_3, Block_y_4;
-	wire [8:0] Block_color_1, Block_color_2, Block_color_3, Block_color_4;
-	wire Block_write_1, Block_write_2, Block_write_3, Block_write_4, Block_done_1, Block_done_2, Block_done_3, Block_done_4;
+	wire [nX-1:0] Block_x_1, Block_x_2, Block_x_3, Block_x_4, Block_x_5, Block_x_6, Block_x_7;
+	wire [nY-1:0] Block_y_1, Block_y_2, Block_y_3, Block_y_4, Block_y_5, Block_y_6, Block_y_7;
+	wire [8:0] Block_color_1, Block_color_2, Block_color_3, Block_color_4, Block_color_5, Block_color_6, Block_color_7;
+	wire Block_write_1, Block_write_2, Block_write_3, Block_write_4, Block_write_5, Block_write_6, Block_write_7;
+	wire Block_done_1, Block_done_2, Block_done_3, Block_done_4, Block_done_5, Block_done_6, Block_done_7;
 	
 	
 	
-	blockObject happy (Resetn, CLOCK_50, KEY1 | initial_draw_1, Block_x_1, Block_y_1, Block_color_1, Block_write_1, Block_done_1, happy_x, happy_y, KEY0);
-		defparam happy.INIT_FILE = "MIF/happy.mif";
-	blockObject sad (Resetn, CLOCK_50, KEY2 | initial_draw_2, Block_x_2, Block_y_2, Block_color_2, Block_write_2, Block_done_2, happy_x, happy_y, KEY0);
-		defparam sad.INIT_FILE = "MIF/player.mif";
-	blockObject cake (Resetn, CLOCK_50, KEY3 | initial_draw_3, Block_x_3, Block_y_3, Block_color_3, Block_write_3, Block_done_3, happy_x, happy_y, KEY0);
-		defparam cake.INIT_FILE = "MIF/cake.mif";
+	blockObject dirt (Resetn, CLOCK_50, (SW1 & canPlace_1) | initial_draw_1, Block_x_1, Block_y_1, Block_color_1, Block_write_1, Block_done_1, happy_x, happy_y, KEY0 & canBreak_1);
+		defparam dirt.INIT_FILE = "MIF/wood.mif";
+	blockObject cake (Resetn, CLOCK_50, (SW2 & canPlace_2) | initial_draw_2, Block_x_2, Block_y_2, Block_color_2, Block_write_2, Block_done_2, happy_x, happy_y, KEY0 & canBreak_2);
+		defparam cake.INIT_FILE = "MIF/stone.mif";
+	blockObject stone (Resetn, CLOCK_50, (SW3 & canPlace_3) | initial_draw_3, Block_x_3, Block_y_3, Block_color_3, Block_write_3, Block_done_3, happy_x, happy_y, KEY0 & canBreak_3);
+		defparam stone.INIT_FILE = "MIF/dirt.mif";
+	blockObject gold (Resetn, CLOCK_50, (SW4 & canPlace_4) | initial_draw_4, Block_x_4, Block_y_4, Block_color_4, Block_write_4, Block_done_4, happy_x, happy_y, KEY0 & canBreak_4);
+		defparam gold.INIT_FILE = "MIF/tomato1.mif";
+	blockObject hay (Resetn, CLOCK_50, (SW5 & canPlace_5) | initial_draw_5, Block_x_5, Block_y_5, Block_color_5, Block_write_5, Block_done_5, happy_x, happy_y, KEY0 & canBreak_5);
+		defparam hay.INIT_FILE = "MIF/gold.mif";
+	blockObject wood (Resetn, CLOCK_50, (SW6 & canPlace_6) | initial_draw_6, Block_x_6, Block_y_6, Block_color_6, Block_write_6, Block_done_6, happy_x, happy_y, KEY0 & canBreak_6);
+		defparam wood.INIT_FILE = "MIF/cake.mif";
 	
 	wire win_con;
-	win_con (map1, map2, map3, win_con);
+	win_con (map1, map2, map3, map4, map5, map6, win_con);
 	reg win_draw;
 	
-	blockObject happy2 (Resetn, CLOCK_50, win_draw, Block_x_4, Block_y_4, Block_color_4, Block_write_4, Block_done_4, O1_centre_x - 10'd8, O1_centre_y - 9'd8, KEY0);
-	
+	blockObject happy2 (Resetn, CLOCK_50, win_draw, Block_x_7, Block_y_7, Block_color_7, Block_write_7, Block_done_7, O1_centre_x - 10'd8, O1_centre_y - 9'd8, KEY0);
+		defparam happy2.INIT_FILE = "MIF/raccoonhappy.mif";
 	
 	// This is to specify whether to place or break a block
-	wire place_break = (KEY1 == 1'b1) ? 1'b1 : // Press KEY1 to place a block type 1
-						(KEY2 == 1'b1) ? 1'b1 : // Press KEY2 to place a block type 2
-						(KEY3 == 1'b1) ? 1'b1 : // Press KEY3 to place a block type 3
+	wire place_break = (SW1 == 1'b1) ? 1'b1 : // Press SW1 to place a block type 1
+						(SW2 == 1'b1) ? 1'b1 : // Press SW2 to place a block type 2
+						(SW3 == 1'b1) ? 1'b1 : // Press SW3 to place a block type 3
+						(SW4 == 1'b1) ? 1'b1 : // Press SW4 to place a block type 4
+						(SW5 == 1'b1) ? 1'b1 : // Press SW5 to place a block type 5
+						(SW6 == 1'b1) ? 1'b1 : // Press SW6 to place a block type 6
 							 (KEY0 == 1'b1) ? 1'b0 : // Press KEY0 to break a block
 							 1'b0;
 	
 	// This code block below is to avoid stacking of blocks
-	wire write_enable = KEY0 | KEY1 | KEY2 | KEY3;
+	wire write_enable_1 = (KEY0 & canBreak_1) | (SW1 & canPlace_1);
+	wire write_enable_2 = (KEY0 & canBreak_2) | (SW2 & canPlace_2);
+	wire write_enable_3 = (KEY0 & canBreak_3) | (SW3 & canPlace_3);
+	wire write_enable_4 = (KEY0 & canBreak_4) | (SW4 & canPlace_4);
+	wire write_enable_5 = (KEY0 & canBreak_5) | (SW5 & canPlace_5);
+	wire write_enable_6 = (KEY0 & canBreak_6) | (SW6 & canPlace_6);
 	
-	wire data_1 = KEY1 && ~KEY0;
-	wire data_2 = KEY2 && ~KEY0;
-	wire data_3 = KEY3 && ~KEY0;
+	wire data_1 = SW1 && ~KEY0;
+	wire data_2 = SW2 && ~KEY0;
+	wire data_3 = SW3 && ~KEY0;
+	wire data_4 = SW4 && ~KEY0;
+	wire data_5 = SW5 && ~KEY0;
+	wire data_6 = SW6 && ~KEY0;
 	
-	object_map_WRITE_1 W1 (Resetn, CLOCK_50, write_enable, xBlock, yBlock, data_1, map1);
-	object_map_WRITE_2 W2 (Resetn, CLOCK_50, write_enable, xBlock, yBlock, data_2, map2);
-	object_map_WRITE_3 W3 (Resetn, CLOCK_50, write_enable, xBlock, yBlock, data_3, map3);
+	object_map_WRITE_1 W1 (Resetn, CLOCK_50, write_enable_1, xBlock, yBlock, data_1, map1);
+	object_map_WRITE_2 W2 (Resetn, CLOCK_50, write_enable_2, xBlock, yBlock, data_2, map2);
+	object_map_WRITE_3 W3 (Resetn, CLOCK_50, write_enable_3, xBlock, yBlock, data_3, map3);
+	object_map_WRITE_4 W4 (Resetn, CLOCK_50, write_enable_4, xBlock, yBlock, data_4, map4);
+	object_map_WRITE_5 W5 (Resetn, CLOCK_50, write_enable_5, xBlock, yBlock, data_5, map5);
+	object_map_WRITE_6 W6 (Resetn, CLOCK_50, write_enable_6, xBlock, yBlock, data_6, map6);
 
     assign done = O1_done | Block_done;
 
-	wire block_active = KEY1 | KEY2 | KEY3 | KEY0 | initial_draw_1 | initial_draw_2 | initial_draw_3 | win_draw;
+	 // select a block when either
+	 // 1. initializing
+	 // 2. placing a block
+	 // 3. breaking a block of the CORRECT type
+	 wire block_sel_1 = SW1 | initial_draw_1 | (KEY0 & canBreak_1);
+	 wire block_sel_2 = SW2 | initial_draw_2 | (KEY0 & canBreak_2);
+	 wire block_sel_3 = SW3 | initial_draw_3 | (KEY0 & canBreak_3);
+	 wire block_sel_4 = SW4 | initial_draw_4 | (KEY0 & canBreak_4);
+	 wire block_sel_5 = SW5 | initial_draw_5 | (KEY0 & canBreak_5);
+	 wire block_sel_6 = SW6 | initial_draw_6 | (KEY0 & canBreak_6);
+	 
+	wire block_active = SW1 | SW2 | SW3 | SW4 | SW5 | SW6 | KEY0 | initial_draw_1 | initial_draw_2 | initial_draw_3 | initial_draw_4 | initial_draw_5 | initial_draw_6 | win_draw;
 	
-	assign Block_x = 	(KEY1 | initial_draw_1) ? Block_x_1 :
-						(KEY2 | initial_draw_2) ? Block_x_2 :
-						(KEY3 | initial_draw_3) ? Block_x_3 :
-						(win_draw) ? Block_x_4 :
+	assign Block_x = 	(win_draw) ? Block_x_7 :
+						(block_sel_1) ? Block_x_1 :
+						(block_sel_2) ? Block_x_2 :
+						(block_sel_3) ? Block_x_3 :
+						(block_sel_4) ? Block_x_4 :
+						(block_sel_5) ? Block_x_5 :
+						(block_sel_6) ? Block_x_6 :
+						
 						Block_x_1;
 						
-	assign Block_y = 	(KEY1 | initial_draw_1) ? Block_y_1 :
-						(KEY2 | initial_draw_2) ? Block_y_2 :
-						(KEY3 | initial_draw_3) ? Block_y_3 :
-						(win_draw) ? Block_y_4 :
+	assign Block_y = 	(win_draw) ? Block_y_7 :
+						(block_sel_1) ? Block_y_1 :
+						(block_sel_2) ? Block_y_2 :
+						(block_sel_3) ? Block_y_3 :
+						(block_sel_4) ? Block_y_4 :
+						(block_sel_5) ? Block_y_5 :
+						(block_sel_6) ? Block_y_6 :
 						Block_y_1;
 	
-	assign Block_color =(KEY1  | initial_draw_1) ? Block_color_1 :
-						(KEY2 | initial_draw_2) ? Block_color_2 :
-						(KEY3 | initial_draw_3) ? Block_color_3 :
-						(win_draw) ? Block_color_4 :
+	assign Block_color = (win_draw) ? Block_color_7 :
+						(block_sel_1) ? Block_color_1 :
+						(block_sel_2) ? Block_color_2 :
+						(block_sel_3) ? Block_color_3 :
+						(block_sel_4) ? Block_color_4 :
+						(block_sel_5) ? Block_color_5 :
+						(block_sel_6) ? Block_color_6 :
 						Block_color_1;
 	
-	assign Block_write =(KEY1  | initial_draw_1) ? Block_write_1 :
-						(KEY2 | initial_draw_2) ? Block_write_2 :
-						(KEY3 | initial_draw_3) ? Block_write_3 :
-						(win_draw) ? Block_write_4 :
+	assign Block_write = (win_draw) ? Block_write_7 :
+						(block_sel_1) ? Block_write_1 :
+						(block_sel_2) ? Block_write_2 :
+						(block_sel_3) ? Block_write_3 :
+						(block_sel_4) ? Block_write_4 :
+						(block_sel_5) ? Block_write_5 :
+						(block_sel_6) ? Block_write_6 :
 						Block_write_1;
 	
-	assign Block_done  =(KEY1  | initial_draw_1) ? Block_done_1 :
-						(KEY2 | initial_draw_2) ? Block_done_2 :
-						(KEY3 | initial_draw_3) ? Block_done_3 :
-						(win_draw) ? Block_done_4 :
+	assign Block_done  = (win_draw) ? Block_done_7 :
+						(block_sel_1) ? Block_done_1 :
+						(block_sel_2) ? Block_done_2 :
+						(block_sel_3) ? Block_done_3 :
+						(block_sel_4) ? Block_done_4 :
+						(block_sel_5) ? Block_done_5 :
+						(block_sel_6) ? Block_done_6 :
 						Block_done_1;
 	
     // choose x, y, color, and write for one of the two objects
@@ -333,13 +463,21 @@ D: Drawing
 
 
     // display PS2 data
-    hex7seg H0 (Serial[4:1], HEX0);
+    /*
+	 hex7seg H0 (Serial[4:1], HEX0);
     hex7seg H1 (Serial[8:5], HEX1);
     hex7seg H2 (Serial[15:12], HEX2);
     hex7seg H3 (Serial[19:16], HEX3);
     hex7seg H4 (Serial[26:23], HEX4);
     hex7seg H5 (Serial[30:27], HEX5);
-
+	 */
+	 
+	 hex7seg H0 (inv_count_1, HEX0);
+	 hex7seg H1 (inv_count_2, HEX1);
+	 hex7seg H2 (inv_count_3, HEX2);
+	 hex7seg H3 (inv_count_4, HEX3);
+	 hex7seg H4 (inv_count_5, HEX4);
+	 hex7seg H5 (inv_count_6, HEX5);
 
 
     // connect to VGA controller
@@ -360,7 +498,7 @@ D: Drawing
 		.VGA_SYNC_N(VGA_SYNC_N),
 		.VGA_CLK(VGA_CLK));
 
-	defparam VGA.BACKGROUND_IMAGE = "./MIF/green.mif" ;
+	defparam VGA.BACKGROUND_IMAGE = "./MIF/bakebg.mif" ;
 endmodule
 
 
@@ -464,8 +602,8 @@ module object (Resetn, Clock, go, ps2_rec, dir, VGA_x, VGA_y, VGA_color, VGA_wri
     parameter nY = 9;
 	
     // by default, use offsets to center the object on the VGA display
-    parameter XOFFSET = 320;
-    parameter YOFFSET = 240;
+    parameter XOFFSET = 630;
+    parameter YOFFSET = 10;
     parameter LEFT = 2'b00 /*'a'*/, RIGHT = 2'b11/*'s'*/, UP = 2'b01/*'w'*/, DOWN = 2'b10/*'z'*/;
     parameter xOBJ = 4, yOBJ = 4;   // object size is 2^xOBJ x 2^yOBJ
     parameter BOX_SIZE_X = 1 << xOBJ;
@@ -610,7 +748,7 @@ wire [8:0] obj_color;    // object pixel colors, read from memory
 
     // use the background color (when erasing), or the object color when drawing
     // (black background is assumed below)
-    assign VGA_color = erase ? {9'h6A} : obj_color;
+    assign VGA_color = erase ? {9'h6B} : obj_color;
 
 	assign x_centre = X;
 	assign y_centre = Y;
@@ -682,13 +820,57 @@ module collision(map, collide, O1_centre_x, O1_centre_y, O1_dir);
 	wire bottom_right_corner = map[bottom_grid_y * 40 + right_grid_x];
 
     // if any of the coordinates have a clock, block collides.
-	assign collide = top_left_corner || top_right_corner || bottom_left_corner || bottom_right_corner;
+	assign collide = top_left_corner || top_right_corner || bottom_left_corner || bottom_right_corner || 
+	left_x < 192 && top_y < 128;
 
 endmodule
 
-module win_con (map1, map2, map3, win_con);
+module win_con (map1, map2, map3, map4, map5, map6, win_con);
 	
-	input wire [1199:0] map1, map2, map3;
-	output wire win_con = (map1[0] == 1'b1 && map2[1] == 1'b1 && map3[2] == 1'b1) ? 1'b1 : 1'b0;
-
+	input wire [1199:0] map1, map2, map3, map4, map5, map6;
+	output wire win_con = 
+	(map3[8 * 40 + 16] == 1'b1 && map3[8 * 40 + 17] == 1'b1 && map3[8 * 40 + 18] == 1'b1 && map3[8 * 40 + 19] == 1'b1 && map3[8 * 40 + 20] == 1'b1 && map3[7 * 40 + 17] == 1'b1 && map3[7 * 40 + 19] == 1'b1 &&
+	 map2[7 * 40 + 16] == 1'b1 && map2[7 * 40 + 18] == 1'b1 && map2[7 * 40 + 20] == 1'b1 && map2[6 * 40 + 16] == 1'b1 && map2[6 * 40 + 17] == 1'b1 && map2[6 * 40 + 18] == 1'b1 && map2[6 * 40 + 19] == 1'b1 && map2[6 * 40 + 20] == 1'b1 &&
+	 map4[5 * 40 + 16] == 1'b1 && map4[5 * 40 + 20] == 1'b1 &&
+	 map6[5 * 40 + 18] == 1'b1 && map6[4 * 40 + 18] == 1'b1 &&
+	 map5[3 * 40 + 18] == 1'b1) ? 1'b1 : 1'b0;
+	
+	
 endmodule
+
+// THIS IS A SWITCH DEBOUNCER TAKEN FROM AN ONLINE SOURCE
+// NOT ORIGINAL CODE! CITATIONS BELOW
+// fpga4student.com: FPGA projects, Verilog projects, VHDL projects
+// Verilog code for button debouncing on FPGA
+// debouncing module without creating another clock domain
+// by using clock enable signal 
+module debounce(input pb_1,clk,output pb_out);
+	wire slow_clk_en;
+	wire Q1,Q2,Q2_bar,Q0;
+	clock_enable u1(clk,slow_clk_en);
+	my_dff_en d0(clk,slow_clk_en,pb_1,Q0);
+
+	my_dff_en d1(clk,slow_clk_en,Q0,Q1);
+	my_dff_en d2(clk,slow_clk_en,Q1,Q2);
+	assign Q2_bar = ~Q2;
+	assign pb_out = Q1 & Q2_bar;
+endmodule
+	
+// Slow clock enable for debouncing button 
+module clock_enable(input Clk_100M,output slow_clk_en);
+	reg [26:0]counter=0;
+	always @(posedge Clk_100M)
+	begin
+		counter <= (counter>=249999)?0:counter+1;
+	end
+	assign slow_clk_en = (counter == 249999)?1'b1:1'b0;
+	
+endmodule
+
+// D-flip-flop with clock enable signal for debouncing module 
+module my_dff_en(input DFF_CLOCK, clock_enable,D, output reg Q=0);
+	  always @ (posedge DFF_CLOCK) begin
+	  if(clock_enable==1) 
+			Q <= D;
+	  end
+endmodule 
