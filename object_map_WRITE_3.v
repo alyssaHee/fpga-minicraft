@@ -9,9 +9,15 @@ module object_map_WRITE_3 (Resetn, Clock, go, screenX, screenY, data_in, map);
 	initial
 	begin
 		map = 1200'b0;
-		map[4] = 1'b1;
-		map[44] = 1'b1;
-		map[79] = 1'b1;
+		map[3 * 40 + 27] = 1'b1;
+		map[3 * 40 + 28] = 1'b1;
+		map[3 * 40 + 29] = 1'b1;
+		map[3 * 40 + 30] = 1'b1;
+		map[3 * 40 + 32] = 1'b1;
+		map[3 * 40 + 34] = 1'b1;
+		map[3 * 40 + 35] = 1'b1;
+		map[3 * 40 + 36] = 1'b1;
+		
 	end
 	
 	wire [6:0] blockX = screenX / 16;		// LOCATIONS IN CONDENSED FORM (0-39, 0,29)
