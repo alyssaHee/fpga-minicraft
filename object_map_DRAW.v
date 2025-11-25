@@ -20,7 +20,7 @@ module object_map_DRAW (Resetn, Clock, go, done, map, data_out, xLocation, yLoca
 			xLocation <= 10'b0;
 			yLocation <= 9'b0;
 		end
-		else if (go && !done)
+		else if (go && !done && !data_out)
 		begin
 			data_out <= map[addr];
 			if (map[addr] == 1'b1)
