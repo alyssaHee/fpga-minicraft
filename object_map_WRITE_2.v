@@ -9,9 +9,14 @@ module object_map_WRITE_2 (Resetn, Clock, go, screenX, screenY, data_in, map);
 	initial
 	begin
 		map = 1200'b0;
-		map[3] = 1'b1;
-		map[43] = 1'b1;
-		map[78] = 1'b1;
+		map[2 * 40 + 26] = 1'b1;
+		map[2 * 40 + 27] = 1'b1;
+		map[2 * 40 + 29] = 1'b1;
+		map[2 * 40 + 30] = 1'b1;
+		map[2 * 40 + 32] = 1'b1;
+		map[2 * 40 + 33] = 1'b1;
+		map[2 * 40 + 34] = 1'b1;
+		map[2 * 40 + 35] = 1'b1;
 	end
 	
 	wire [6:0] blockX = screenX / 16;		// LOCATIONS IN CONDENSED FORM (0-39, 0,29)
